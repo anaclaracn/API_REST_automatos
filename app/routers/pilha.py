@@ -217,14 +217,3 @@ def test_pda(automata_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
-
-@router.get("/{automata_id}/visualize", summary="Visualiza o PDA em formato gráfico")
-def visualize_pda(automata_id: str):
-    npda = pda_store.get(automata_id)
-    if npda is None:
-        raise HTTPException(status_code=404, detail="PDA não encontrado")
-    try:
-        return {"graph": "Visualização gráfica do PDA (função não implementada)"}
-    except Exception as e:
-        raise HTTPException(status_code=400, detail=str(e))
