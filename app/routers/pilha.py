@@ -4,6 +4,8 @@ import uuid
 from automata.pda.npda import NPDA  # Utilize a classe NPDA, que é a implementação concreta
 import json
 import os
+from fastapi.responses import Response
+
 
 router = APIRouter()
 pda_store = {}  # Armazenamento em memória: chave (ID) -> objeto NPDA
@@ -217,3 +219,78 @@ def test_pda(automata_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+
+def npda_to_dot(npda: NPDA) -> str:
+    """
+    Gera uma representação no formato DOT do NPDA.
+    A ideia é:
+      - Criar um nó "inicial" apontando para o estado inicial.
+      - Desenhar cada estado; estados finais são desenhados com dupla borda.
+      - Para cada transição, criar uma aresta com rótulo indicando:
+            "input_symbol, stack_symbol -> new_stack"
+        (se o símbolo de entrada ou o new_stack for vazio, usamos "ε")
+    """
+    dot_lines = []
+    dot_lines.append("digraph NPDA {")
+    dot_lines.append("  rankdir=LR;")
+    dot_lines.append("  size=\"8,5\";")
+    dot_lines.append("  node [shape = circle];")
+    # Nó inicial (invisível)
+    dot_lines.append("  __start__ [shape = point];")
+    dot_lines.append(f"  __start__ -> \"{npda.initial_state}\";")
+    
+    # Definir os estados (estados finais com duplo círculo)
+    for state in npda.states:
+        if state in npda.final_states:
+            dot_lines.append(f"  \"{state}\" [shape = doublecircle];")
+        else:
+            dot_lines.append(f"  \"{state}\" [shape = circle];")
+    
+    # Adicionar as arestas (transições)
+    for state, trans_dict in npda.transitions.items():
+        for input_symbol, inner_dict in trans_dict.items():
+            for stack_symbol, trans_set in inner_dict.items():
+                for (next_state, new_stack) in trans_set:
+                    # Se o input_symbol ou new_stack estiverem vazios, usar ε (epsilon)
+                    inp = input_symbol if input_symbol != "" else "ε"
+                    newst = new_stack if new_stack != "" else "ε"
+                    label = f"{inp}, {stack_symbol} -> {newst}"
+                    dot_lines.append(f"  \"{state}\" -> \"{next_state}\" [ label = \"{label}\" ];")
+    
+    dot_lines.append("}")
+    return "\n".join(dot_lines)
+
+
+@router.get("/{automata_id}/visualize", summary="Visualiza o PDA em formato gráfico (SVG ou PNG)")
+def visualize_pda(automata_id: str, format: str = "svg"):
+    """
+    Gera uma representação gráfica do PDA (usando Graphviz)
+    no formato especificado (SVG ou PNG) e retorna como resposta HTTP.
+    """
+    npda = pda_store.get(automata_id)
+    if npda is None:
+        raise HTTPException(status_code=404, detail="PDA não encontrado")
+    
+    dot_str = npda_to_dot(npda)
+    
+    # Adicione explicitamente o caminho para o executável do Graphviz ao PATH,
+    # caso ainda não esteja presente no ambiente do processo Python.
+    graphviz_path = r"C:\Program Files\Graphviz\bin"
+    if graphviz_path not in os.environ["PATH"]:
+        os.environ["PATH"] += os.pathsep + graphviz_path
+
+    try:
+        from graphviz import Source
+    except ImportError:
+        raise HTTPException(status_code=500, detail="O pacote graphviz não está instalado.")
+    
+    try:
+        # Cria o objeto Source com o DOT gerado, especificando o engine "dot"
+        graph = Source(dot_str, format=format, engine="dot")
+        output = graph.pipe(format=format)
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Erro ao renderizar o gráfico: {str(e)}")
+    
+    # Define o Content-Type de acordo com o formato solicitado
+    mime = "image/svg+xml" if format.lower() == "svg" else "image/png"
+    return Response(content=output, media_type=mime)
