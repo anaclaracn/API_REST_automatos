@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import afd, pda, turing  # importe os módulos de rotas que você criará
+from app.routers import AFD, pilha, turing
 
 app = FastAPI(
     title="API de Autômatos",
@@ -7,16 +7,15 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Inclua as rotas (endpoints)
-app.include_router(afd.router, prefix="/afd", tags=["AFD"])
-app.include_router(pda.router, prefix="/pda", tags=["Autômato com Pilha"])
+# Incluindo os routers com os prefixos adequados e tags para documentação
+app.include_router(AFD.router, prefix="/AFD", tags=["AFD"])
+app.include_router(pilha.router, prefix="/pilha", tags=["pilha"])
 app.include_router(turing.router, prefix="/turing", tags=["Máquina de Turing"])
 
 @app.get("/")
 def read_root():
-    return {"message": "Página de API de Autômatos"}
+    return {"message": "Bem-vindo à API de Autômatos!"}
 
-# Para rodar via 'python app/main.py'
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)
