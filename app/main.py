@@ -7,7 +7,7 @@ app = FastAPI(
     version="1.0.0"
 )
 
-# Incluindo os routers com os prefixos adequados e tags para documentação
+# Routers das diferentes implementações de autômatos
 app.include_router(afd.router, prefix="/afd", tags=["AFD"])
 app.include_router(pilha.router, prefix="/pilha", tags=["pilha"])
 app.include_router(turing.router, prefix="/turing", tags=["Máquina de Turing"])
