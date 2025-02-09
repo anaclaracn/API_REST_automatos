@@ -5,6 +5,9 @@ from automata.pda.npda import NPDA  # Utilize a classe NPDA, que é a implementa
 import json
 import os
 
+router = APIRouter()
+pda_store = {}  # Armazenamento em memória: chave (ID) -> objeto NPDA
+
 def npda_to_dict(npda: NPDA) -> dict:
     """Converte um objeto NPDA para um dicionário serializável."""
     return {
@@ -72,10 +75,6 @@ def load_pda_store():
 load_pda_store()
 
 
-
-router = APIRouter()
-pda_store = {}  # Armazenamento em memória: chave (ID) -> objeto NPDA
-
 class PDAModel(BaseModel):
     states: list[str]
     input_symbols: list[str]
@@ -89,43 +88,44 @@ def convert_transitions(transitions: dict) -> dict:
     """
     Converte o dicionário de transições recebido no seguinte formato:
     
-      {
+    {
         "q0": {
-          "a,Z": [["q1", "AZ"]],
-          "b,Z": [["q0", "Z"]]
+            "a,Z": [["q1", "AZ"]],
+            "b,Z": [["q0", "BZ"]],
+            "a,A": [["q1", ""]],
+            "b,B": [["q1", ""]]
         },
         "q1": {
-          "a,A": [["q1", ""]]
+            "a,A": [["q1", ""]],
+            "b,B": [["q1", ""]],
+            "": [["q2", ""]]
         }
-      }
-      
-    para um formato aninhado, no qual:
+    }
     
-      {
-         state: {
-             input_symbol: {
-                 stack_symbol: { (new_state, new_stack_string) }
-             }
-         }
-      }
+    Para um formato aninhado, onde o símbolo de entrada vazio é representado como `""`.
     """
     converted = {}
     for state, trans in transitions.items():
         new_trans = {}
         for key, value in trans.items():
-            # Espera-se o formato "input,stack" para a chave
-            try:
+            if ',' in key:
                 input_symbol, stack_symbol = key.split(",")
-            except ValueError:
-                raise HTTPException(
-                    status_code=400,
-                    detail=f"Formato inválido para a chave de transição '{key}'. Use o formato 'input,stack'."
-                )
+            else:
+                input_symbol = ""
+                stack_symbol = key.strip()
+            
             input_symbol = input_symbol.strip()
             stack_symbol = stack_symbol.strip()
-            # Cria a estrutura aninhada
+
+            if not stack_symbol:
+                raise HTTPException(
+                    status_code=400,
+                    detail=f"Símbolo da pilha inválido na transição '{key}' para o estado '{state}'."
+                )
+
             if input_symbol not in new_trans:
                 new_trans[input_symbol] = {}
+
             try:
                 new_transitions = {tuple(item) for item in value}
             except Exception:
@@ -133,24 +133,35 @@ def convert_transitions(transitions: dict) -> dict:
                     status_code=400,
                     detail=f"Formato inválido no valor das transições para a chave '{key}'."
                 )
+
             new_trans[input_symbol][stack_symbol] = new_transitions
         converted[state] = new_trans
     return converted
+
+
 
 @router.post("/create", summary="Cria um Autômato com Pilha (PDA)")
 def create_pda(data: PDAModel):
     try:
         converted_transitions = convert_transitions(data.transitions)
-        
+
+        # 🔹 Adicionar "ε" como símbolo de entrada, se houver epsilon-movimentos
+        all_input_symbols = set(data.input_symbols)
+        for state in converted_transitions:
+            for input_symbol in converted_transitions[state]:
+                if input_symbol == "ε":
+                    all_input_symbols.add("ε")
+
         npda = NPDA(
             states=set(data.states),
-            input_symbols=set(data.input_symbols),
+            input_symbols=all_input_symbols,
             stack_symbols=set(data.stack_symbols),
             transitions=converted_transitions,
             initial_state=data.initial_state,
             initial_stack_symbol=data.initial_stack_symbol,
             final_states=set(data.final_states)
         )
+
         automata_id = str(uuid.uuid4())
         pda_store[automata_id] = npda
 
@@ -162,7 +173,7 @@ def create_pda(data: PDAModel):
             "id": automata_id,
             "automata": {
                 "states": list(npda.states),
-                "input_symbols": list(npda.input_symbols),
+                "input_symbols": list(all_input_symbols),  # Agora inclui "ε" se necessário
                 "stack_symbols": list(npda.stack_symbols),
                 "transitions": data.transitions,  # Retorna o JSON enviado originalmente
                 "initial_state": npda.initial_state,
@@ -172,6 +183,7 @@ def create_pda(data: PDAModel):
         }
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
+
 
 
 @router.get("/{automata_id}", summary="Recupera informações do PDA")
