@@ -1,6 +1,7 @@
 from fastapi import FastAPI
 from app.routers import afd, pilha, turing
 
+# Inicializa a aplicação FastAPI com metadados para documentação
 app = FastAPI(
     title="API de Autômatos",
     description="API para manipular e analisar autômatos utilizando a biblioteca Automata",
@@ -16,6 +17,7 @@ app.include_router(turing.router, prefix="/turing", tags=["Máquina de Turing"])
 def read_root():
     return {"message": "Bem-vindo à API de Autômatos!"}
 
+# Executa a aplicação se este arquivo for rodado diretamente
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run("app.main:app", host="0.0.0.0", port=8000, reload=True)

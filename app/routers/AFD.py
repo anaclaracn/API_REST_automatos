@@ -7,22 +7,28 @@ import os
 import uuid
 import graphviz
 
+# Criação do roteador para o AFD (Autômato Finito Determinístico)
 router = APIRouter()
 
-# Armazenamento em memória para os AFDs
+# Armazenamento em memória dos AFDs criados
 afd_store = {}
+
+# Nome do arquivo para persistência dos AFDs
 AFD_FILE = "afd_store.json"
+
+# Diretório onde as imagens dos autômatos serão armazenadas
 IMAGES_DIR = "automata_images"
 
 # Criar pasta para armazenar imagens dos autômatos, se não existir
 os.makedirs(IMAGES_DIR, exist_ok=True)
 
-# Funções de persistência
+# Função para salvar o estado atual dos AFDs no arquivo JSON
 def save_afd_store():
     """Salva os AFDs no arquivo JSON"""
     with open(AFD_FILE, "w") as f:
         json.dump({k: afd_to_dict(v) for k, v in afd_store.items()}, f)
 
+# Função para carregar os AFDs armazenados no JSON ao iniciar o servidor
 def load_afd_store():
     """Carrega os AFDs do arquivo JSON"""
     global afd_store
@@ -35,7 +41,7 @@ def load_afd_store():
             except json.JSONDecodeError:
                 afd_store = {}  # Se houver erro, reinicia o armazenamento
 
-# Funções de conversão para o AFD
+# Função para converter um AFD em um dicionário serializável
 def afd_to_dict(afd: DFA) -> dict:
     """Converte um objeto AFD para um dicionário serializável."""
     return {
@@ -46,6 +52,7 @@ def afd_to_dict(afd: DFA) -> dict:
         "final_states": list(afd.final_states)
     }
 
+# Função para reconstruir um AFD a partir de um dicionário
 def afd_from_dict(data: dict) -> DFA:
     """Reconstrói um objeto AFD a partir de um dicionário serializável."""
     return DFA(
@@ -59,15 +66,15 @@ def afd_from_dict(data: dict) -> DFA:
 # Carregar os AFDs ao iniciar o servidor
 load_afd_store()
 
-# Modelo de dados para a criação de um AFD
+# Modelo de dados para definir um AFD na API
 class AFDModel(BaseModel):
-    states: list[str]
-    input_symbols: list[str]
-    transitions: dict
-    initial_state: str
-    final_states: list[str]
+    states: list[str]  # Lista de estados
+    input_symbols: list[str]  # Alfabeto de entrada
+    transitions: dict  # Tabela de transições
+    initial_state: str  # Estado inicial
+    final_states: list[str]  # Estados finais
 
-# Endpoint para criar um AFD (mantendo a lógica atual)
+# Endpoint para criar um AFD e armazená-lo na memória
 @router.post("/create", summary="Cria um AFD")
 def create_afd(data: AFDModel):
     try:
@@ -78,10 +85,10 @@ def create_afd(data: AFDModel):
             initial_state=data.initial_state,
             final_states=set(data.final_states)
         )
-        automata_id = str(uuid.uuid4())
+        automata_id = str(uuid.uuid4())   # Gera um identificador único
         afd_store[automata_id] = afd
 
-        save_afd_store()
+        save_afd_store()   # Salva o novo AFD no arquivo JSON
 
         return {
             "message": "AFD criado com sucesso!",
@@ -91,7 +98,7 @@ def create_afd(data: AFDModel):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Endpoint para recuperar informações do AFD
+# Endpoint para recuperar um AFD armazenado
 @router.get("/{automata_id}", summary="Recupera informações do AFD")
 def get_afd(automata_id: str):
     afd = afd_store.get(automata_id)
@@ -117,7 +124,7 @@ def test_afd(automata_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-# Função para gerar uma representação DOT do AFD
+# Função para gerar um diagrama visual do AFD no formato DOT
 def afd_to_dot(afd: DFA) -> str:
     """
     Gera uma representação no formato DOT do AFD.
@@ -141,7 +148,7 @@ def afd_to_dot(afd: DFA) -> str:
         else:
             dot_lines.append(f"  \"{state}\" [shape = circle];")
     
-    # Adiciona as arestas (transições)
+    # Adiciona as transições (arestas)
     for state, trans in afd.transitions.items():
         for input_symbol, next_state in trans.items():
             # Se o input_symbol estiver vazio, usa "ε"
