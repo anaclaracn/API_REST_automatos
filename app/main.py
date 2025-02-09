@@ -1,5 +1,5 @@
 from fastapi import FastAPI
-from app.routers import AFD, pilha, turing
+from app.routers import afd, pilha, turing
 
 app = FastAPI(
     title="API de Autômatos",
@@ -8,7 +8,7 @@ app = FastAPI(
 )
 
 # Incluindo os routers com os prefixos adequados e tags para documentação
-app.include_router(AFD.router, prefix="/AFD", tags=["AFD"])
+app.include_router(afd.router, prefix="/afd", tags=["AFD"])
 app.include_router(pilha.router, prefix="/pilha", tags=["pilha"])
 app.include_router(turing.router, prefix="/turing", tags=["Máquina de Turing"])
 
