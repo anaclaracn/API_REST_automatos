@@ -7,16 +7,22 @@ import os
 import uuid
 import graphviz
 
+# Cria um roteador para as rotas relacionadas à Máquina de Turing (MT)
 router = APIRouter()
-tm_store = {}  # Armazena as MTs em memória
+
+# Dicionário que armazena as MTs criadas em memória.
+tm_store = {} 
+
+# Nome do arquivo para persistir (armazenar) as MTs em formato JSON.
 NTM_FILE = "tm_store.json"
 
-# Funções de persistência
+# Função para salvar o estado atual das MTs no arquivo JSON
 def save_tm_store():
     """Salva as MTs no arquivo JSON"""
     with open(NTM_FILE, "w") as f:
         json.dump({k: tm_to_dict(v) for k, v in tm_store.items()}, f)
 
+# Função para carregar as MTs armazenados no JSON ao iniciar o servidor
 def load_tm_store():
     """Carrega as MTs do arquivo JSON"""
     global tm_store
@@ -29,7 +35,7 @@ def load_tm_store():
             except json.JSONDecodeError:
                 tm_store = {}  # Se houver erro, reinicia o armazenamento
 
-# Funções de conversão para a Máquina de Turing
+# Função para converter uma MT em um dicionário serializável
 def tm_to_dict(tm: NTM) -> dict:
     """Converte um objeto MT para um dicionário serializável."""
     return {
@@ -67,6 +73,7 @@ class TMModel(BaseModel):
     blank_symbol: str
     final_states: list[str]
 
+# Endpoint para criar uma MT e armazená-lo na memória
 @router.post("/create", summary="Cria uma Máquina de Turing")
 def create_tm(data: TMModel):
     try:
@@ -91,6 +98,7 @@ def create_tm(data: TMModel):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
+# Endpoint para recuperar uma MT armazenado
 @router.get("/{automata_id}", summary="Recupera informações da Máquina de Turing")
 def get_tm(automata_id: str):
     tm = tm_store.get(automata_id)
@@ -98,6 +106,7 @@ def get_tm(automata_id: str):
         raise HTTPException(status_code=404, detail="MT não encontrada")
     return tm_to_dict(tm)
 
+# Endpoint para testar a aceitação de uma string pelo MT
 @router.post("/{automata_id}/test", summary="Testa a aceitação de uma string pela MT")
 def test_tm(automata_id: str, payload: dict):
     tm = tm_store.get(automata_id)

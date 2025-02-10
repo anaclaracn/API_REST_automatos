@@ -1,15 +1,21 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 import uuid
-from automata.pda.npda import NPDA  # Utilize a classe NPDA, que é a implementação concreta
+from automata.pda.npda import NPDA  # Importando o Autômato com Pilha
 import json
 import os
 from fastapi.responses import Response
 
-
+# Criação do roteador para o AP
 router = APIRouter()
-pda_store = {}  # Armazenamento em memória: chave (ID) -> objeto NPDA
 
+# Armazenamento em memória dos APs criados
+pda_store = {}  
+
+# Nome do arquivo para persistência dos APs
+PDA_FILE = "pda_store.json"
+
+# Função para converter um AP em um dicionário serializável
 def npda_to_dict(npda: NPDA) -> dict:
     """Converte um objeto NPDA para um dicionário serializável."""
     return {
@@ -31,7 +37,7 @@ def npda_to_dict(npda: NPDA) -> dict:
         "final_states": list(npda.final_states)
     }
 
-
+# Função para reconstruir um AP a partir de um dicionário
 def npda_from_dict(data: dict) -> NPDA:
     """Reconstrói um objeto NPDA a partir de um dicionário serializado."""
     return NPDA(
@@ -53,14 +59,13 @@ def npda_from_dict(data: dict) -> NPDA:
         final_states=set(data["final_states"])
     )
 
-pda_store = {}
-PDA_FILE = "pda_store.json"
-
+# Função para salvar o estado atual dos APs no arquivo JSON
 def save_pda_store():
     """Salva os PDAs no arquivo JSON"""
     with open(PDA_FILE, "w") as f:
         json.dump({k: npda_to_dict(v) for k, v in pda_store.items()}, f)
 
+# Função para carregar os APs armazenados no JSON ao iniciar o servidor
 def load_pda_store():
     """Carrega os PDAs do arquivo JSON"""
     global pda_store
@@ -76,7 +81,7 @@ def load_pda_store():
 # Chamada para carregar os PDAs ao iniciar o servidor
 load_pda_store()
 
-
+# Modelo de dados para definir um AP na API
 class PDAModel(BaseModel):
     states: list[str]
     input_symbols: list[str]
@@ -141,7 +146,7 @@ def convert_transitions(transitions: dict) -> dict:
     return converted
 
 
-
+# Endpoint para criar um AP e armazená-lo na memória
 @router.post("/create", summary="Cria um Autômato com Pilha (PDA)")
 def create_pda(data: PDAModel):
     try:
@@ -187,7 +192,7 @@ def create_pda(data: PDAModel):
         raise HTTPException(status_code=400, detail=str(e))
 
 
-
+# Endpoint para recuperar um AP armazenado
 @router.get("/{automata_id}", summary="Recupera informações do PDA")
 def get_pda(automata_id: str):
     npda = pda_store.get(automata_id)
@@ -203,6 +208,7 @@ def get_pda(automata_id: str):
         "final_states": list(npda.final_states)
     }
 
+# Endpoint para testar a aceitação de uma string pelo AP
 @router.post("/{automata_id}/test", summary="Testa a aceitação de uma string pelo PDA")
 def test_pda(automata_id: str, payload: dict):
     npda = pda_store.get(automata_id)
@@ -219,7 +225,7 @@ def test_pda(automata_id: str, payload: dict):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
+# Função para gerar um diagrama visual do AP no formato DOT
 def npda_to_dot(npda: NPDA) -> str:
     """
     Gera uma representação no formato DOT do NPDA.
@@ -260,7 +266,7 @@ def npda_to_dot(npda: NPDA) -> str:
     dot_lines.append("}")
     return "\n".join(dot_lines)
 
-
+# Endpoint para visualizar o AP em formato gráfico (SVG ou PNG)
 @router.get("/{automata_id}/visualize", summary="Visualiza o PDA em formato gráfico (SVG ou PNG)")
 def visualize_pda(automata_id: str, format: str = "svg"):
     """

@@ -1,13 +1,13 @@
 from fastapi import APIRouter, HTTPException
 from fastapi.responses import Response, FileResponse
 from pydantic import BaseModel
-from automata.fa.dfa import DFA
+from automata.fa.dfa import DFA  # Importando o Autômato Finito Determinístico
 import json
 import os
 import uuid
 import graphviz
 
-# Criação do roteador para o AFD (Autômato Finito Determinístico)
+# Criação do roteador para o AFD 
 router = APIRouter()
 
 # Armazenamento em memória dos AFDs criados
@@ -118,8 +118,8 @@ def test_afd(automata_id: str, payload: dict):
         raise HTTPException(status_code=400, detail="Campo 'input_string' é necessário")
     
     try:
-        # O método da classe DFA é "accepts" para verificar se a string é aceita
-        result = afd.accepts(input_string)
+        # método 'accepts_input' para verificar se a string é aceita
+        result = afd.accepts_input(input_string)
         return {"input_string": input_string, "accepted": result}
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
