@@ -1,0 +1,15 @@
+# Ambiente virtual
+venv/
+.env/
+
+# Arquivos de cache do Python
+__pycache__/
+
+# Arquivos de store dos autômatos (gerados automaticamente)
+afd_store.json
+pda_store.json
+tm_store.json
+
+# Logs
+logs/
+*.log
